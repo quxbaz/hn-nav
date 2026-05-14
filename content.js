@@ -83,8 +83,7 @@
   const style = document.createElement('style');
   style.textContent = `
     tr.hn-nav-selected td.default {
-      outline: 2px solid #ff6600;
-      outline-offset: -2px;
+      background-color: #fef9c3;
       border-radius: 3px;
       padding: 6px 8px;
     }
