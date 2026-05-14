@@ -25,14 +25,14 @@
     indicator.style.display = si ? '' : 'none';
     indicatorLabel.style.display = si ? '' : 'none';
     indicator.style.background = indicatorColor;
-    indicatorLabel.style.color = indicatorColor;
+    indicatorLabel.style.background = indicatorColor;
   });
   chrome.storage.onChanged.addListener(({ smoothScroll, showIndicator: si, offset, indicatorColor }) => {
     if (smoothScroll)    forceSmoothScroll = smoothScroll.newValue;
     if (offset)          scrollOffset = offset.newValue / 100;
     if (indicatorColor) {
       indicator.style.background = indicatorColor.newValue;
-      indicatorLabel.style.color = indicatorColor.newValue;
+      indicatorLabel.style.background = indicatorColor.newValue;
     }
     if (si) {
       showIndicator = si.newValue;
@@ -73,18 +73,19 @@
 
   const indicatorLabel = document.createElement('div');
   indicatorLabel.style.cssText = `
-    position: absolute;
-    font-size: 8px;
-    font-family: monospace;
-    color: #ff6600;
+    position: fixed;
+    top: 4px;
+    left: 4px;
+    font-size: 8.5px;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    color: #fff;
+    background: #ff6600;
+    padding: 2px 4px;
+    border-radius: 3px;
     z-index: 9999;
     pointer-events: none;
     opacity: 0;
-    white-space: nowrap;
-    transform: translateX(-100%);
-    transition: left 300ms cubic-bezier(0.4,0,0.2,1),
-                top  300ms cubic-bezier(0.4,0,0.2,1),
-                opacity 150ms ease;
+    transition: opacity 150ms ease;
   `;
   document.body.appendChild(indicatorLabel);
 
@@ -95,41 +96,34 @@
     const x = rect.left + window.scrollX - 15;
     const y = rect.top  + window.scrollY + 22;
 
-    // top-level counter
-    if (getIndent(row) === 0) {
-      const comments = getComments();
-      const topLevel = comments.filter(c => getIndent(c) === 0);
-      const a = topLevel.indexOf(row) + 1;
-      const b = topLevel.length;
-      indicatorLabel.textContent = `${a}/${b}`;
-      indicatorLabel.style.left = (x + 9) + 'px';
-      indicatorLabel.style.top  = (y + 12) + 'px';
-      indicatorLabel.style.opacity = indicator.style.opacity === '0' ? '0' : '1';
-    } else {
-      indicatorLabel.style.opacity = '0';
+    // top-level counter tag (find ancestor if nested)
+    const comments = getComments();
+    const topLevel = comments.filter(c => getIndent(c) === 0);
+    let topRow = row;
+    if (getIndent(row) !== 0) {
+      const idx = comments.indexOf(row);
+      for (let i = idx - 1; i >= 0; i--) {
+        if (getIndent(comments[i]) === 0) { topRow = comments[i]; break; }
+      }
     }
+    const a = topLevel.indexOf(topRow) + 1;
+    const b = topLevel.length;
+    indicatorLabel.textContent = `${a} / ${b}`;
+    indicatorLabel.style.opacity = '1';
 
     if (indicator.style.opacity === '0') {
       indicator.style.transition = 'opacity 150ms ease';
-      indicatorLabel.style.transition = 'opacity 150ms ease';
-      indicator.style.left      = x + 'px';
-      indicator.style.top       = y + 'px';
-      indicatorLabel.style.left = (x + 9) + 'px';
-      indicatorLabel.style.top  = (y + 12) + 'px';
+      indicator.style.left = x + 'px';
+      indicator.style.top  = y + 'px';
       requestAnimationFrame(() => {
         indicator.style.opacity = '1';
-        if (getIndent(row) === 0) indicatorLabel.style.opacity = '1';
         requestAnimationFrame(() => {
-          const t = `left 300ms cubic-bezier(0.4,0,0.2,1), top 300ms cubic-bezier(0.4,0,0.2,1), opacity 150ms ease`;
-          indicator.style.transition = t;
-          indicatorLabel.style.transition = t;
+          indicator.style.transition = `left 300ms cubic-bezier(0.4,0,0.2,1), top 300ms cubic-bezier(0.4,0,0.2,1), opacity 150ms ease`;
         });
       });
     } else {
-      indicator.style.left      = x + 'px';
-      indicator.style.top       = y + 'px';
-      indicatorLabel.style.left = (x + 9) + 'px';
-      indicatorLabel.style.top  = (y + 12) + 'px';
+      indicator.style.left = x + 'px';
+      indicator.style.top  = y + 'px';
     }
   }
 
