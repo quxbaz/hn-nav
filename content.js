@@ -189,9 +189,9 @@
   const style = document.createElement('style');
   style.textContent = `
     tr.hn-nav-selected td.default {
-      background-color: #fef9c3;
+      background-color: #fdfbde;
       border-radius: 3px;
-      box-shadow: 0 0 0 6px #fef9c3;
+      box-shadow: 0 0 0 6px #fdfbde;
     }
   `;
   document.head.appendChild(style);
