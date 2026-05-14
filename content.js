@@ -14,6 +14,71 @@
 
   const history = [];
   let historyPos = -1;
+  let forceSmoothScroll = false;
+
+  chrome.storage.sync.get({ smoothScroll: false }, ({ smoothScroll }) => {
+    forceSmoothScroll = smoothScroll;
+  });
+  chrome.storage.onChanged.addListener(({ smoothScroll }) => {
+    if (smoothScroll) forceSmoothScroll = smoothScroll.newValue;
+  });
+
+  function animatedScrollTo(targetY) {
+    const startY = window.scrollY;
+    const diff = targetY - startY;
+    const duration = 300;
+    const startTime = performance.now();
+    function step(now) {
+      const t = Math.min((now - startTime) / duration, 1);
+      const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+      window.scrollTo(0, startY + diff * ease);
+      if (t < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  // circle indicator
+  const indicator = document.createElement('div');
+  indicator.style.cssText = `
+    position: absolute;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #ff6600;
+    z-index: 9999;
+    pointer-events: none;
+    opacity: 0;
+    transition: left 300ms cubic-bezier(0.4,0,0.2,1),
+                top  300ms cubic-bezier(0.4,0,0.2,1),
+                opacity 150ms ease;
+  `;
+  document.body.appendChild(indicator);
+
+  function updateIndicator(row) {
+    const td = row.querySelector('td.default');
+    if (!td) return;
+    const rect = td.getBoundingClientRect();
+    const x = rect.left + window.scrollX - 15;
+    const y = rect.top  + window.scrollY + 22;
+    if (indicator.style.opacity === '0') {
+      indicator.style.transition = 'opacity 150ms ease';
+      indicator.style.left = x + 'px';
+      indicator.style.top  = y + 'px';
+      requestAnimationFrame(() => {
+        indicator.style.opacity = '1';
+        requestAnimationFrame(() => {
+          indicator.style.transition = `
+            left 300ms cubic-bezier(0.4,0,0.2,1),
+            top  300ms cubic-bezier(0.4,0,0.2,1),
+            opacity 150ms ease
+          `;
+        });
+      });
+    } else {
+      indicator.style.left = x + 'px';
+      indicator.style.top  = y + 'px';
+    }
+  }
 
   function select(row, fromHistory = false) {
     const prev = getSelected();
@@ -25,9 +90,13 @@
       history.push(row.id);
       historyPos = history.length - 1;
     }
-    const rowTop = row.getBoundingClientRect().top + window.scrollY;
-    const target = rowTop - window.innerHeight * 0.25;
-    window.scrollTo({ top: target, behavior: 'smooth' });
+    const target = row.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.25;
+    if (forceSmoothScroll) {
+      animatedScrollTo(target);
+    } else {
+      window.scrollTo({ top: target, behavior: 'smooth' });
+    }
+    updateIndicator(row);
   }
 
   function navigate(dir) {
@@ -115,7 +184,7 @@
     tr.hn-nav-selected td.default {
       background-color: #fef9c3;
       border-radius: 3px;
-      padding: 6px 8px;
+      box-shadow: 0 0 0 6px #fef9c3;
     }
   `;
   document.head.appendChild(style);

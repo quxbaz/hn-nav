@@ -8,6 +8,8 @@
     "48": "icon48.png",
     "128": "icon128.png"
   },
+  "action": { "default_popup": "popup.html", "default_icon": "icon48.png" },
+  "permissions": ["storage"],
   "content_scripts": [
     {
       "matches": ["*://news.ycombinator.com/item*"],
