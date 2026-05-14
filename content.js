@@ -97,7 +97,7 @@
       history.push(row.id);
       historyPos = history.length - 1;
     }
-    const target = row.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.25;
+    const target = row.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.20;
     if (forceSmoothScroll) {
       animatedScrollTo(target);
     } else {
