@@ -99,6 +99,7 @@
       const map = {
         ArrowLeft: 'up', ArrowRight: 'down', ArrowUp: 'left', ArrowDown: 'right',
         PageUp: 'pageup', PageDown: 'pagedown',
+        '.': 'histback', '/': 'histfwd',
       };
       dir = map[e.key];
     }
