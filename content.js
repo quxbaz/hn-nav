@@ -23,12 +23,17 @@
     showIndicator = si;
     scrollOffset = offset / 100;
     indicator.style.display = si ? '' : 'none';
+    indicatorLabel.style.display = si ? '' : 'none';
     indicator.style.background = indicatorColor;
+    indicatorLabel.style.color = indicatorColor;
   });
   chrome.storage.onChanged.addListener(({ smoothScroll, showIndicator: si, offset, indicatorColor }) => {
     if (smoothScroll)    forceSmoothScroll = smoothScroll.newValue;
     if (offset)          scrollOffset = offset.newValue / 100;
-    if (indicatorColor)  indicator.style.background = indicatorColor.newValue;
+    if (indicatorColor) {
+      indicator.style.background = indicatorColor.newValue;
+      indicatorLabel.style.color = indicatorColor.newValue;
+    }
     if (si) {
       showIndicator = si.newValue;
       indicator.style.display = si.newValue ? '' : 'none';
@@ -66,29 +71,65 @@
   `;
   document.body.appendChild(indicator);
 
+  const indicatorLabel = document.createElement('div');
+  indicatorLabel.style.cssText = `
+    position: absolute;
+    font-size: 8px;
+    font-family: monospace;
+    color: #ff6600;
+    z-index: 9999;
+    pointer-events: none;
+    opacity: 0;
+    white-space: nowrap;
+    transform: translateX(-100%);
+    transition: left 300ms cubic-bezier(0.4,0,0.2,1),
+                top  300ms cubic-bezier(0.4,0,0.2,1),
+                opacity 150ms ease;
+  `;
+  document.body.appendChild(indicatorLabel);
+
   function updateIndicator(row) {
     const td = row.querySelector('td.default');
     if (!td) return;
     const rect = td.getBoundingClientRect();
     const x = rect.left + window.scrollX - 15;
     const y = rect.top  + window.scrollY + 22;
+
+    // top-level counter
+    if (getIndent(row) === 0) {
+      const comments = getComments();
+      const topLevel = comments.filter(c => getIndent(c) === 0);
+      const a = topLevel.indexOf(row) + 1;
+      const b = topLevel.length;
+      indicatorLabel.textContent = `${a}/${b}`;
+      indicatorLabel.style.left = (x + 9) + 'px';
+      indicatorLabel.style.top  = (y + 12) + 'px';
+      indicatorLabel.style.opacity = indicator.style.opacity === '0' ? '0' : '1';
+    } else {
+      indicatorLabel.style.opacity = '0';
+    }
+
     if (indicator.style.opacity === '0') {
       indicator.style.transition = 'opacity 150ms ease';
-      indicator.style.left = x + 'px';
-      indicator.style.top  = y + 'px';
+      indicatorLabel.style.transition = 'opacity 150ms ease';
+      indicator.style.left      = x + 'px';
+      indicator.style.top       = y + 'px';
+      indicatorLabel.style.left = (x + 9) + 'px';
+      indicatorLabel.style.top  = (y + 12) + 'px';
       requestAnimationFrame(() => {
         indicator.style.opacity = '1';
+        if (getIndent(row) === 0) indicatorLabel.style.opacity = '1';
         requestAnimationFrame(() => {
-          indicator.style.transition = `
-            left 300ms cubic-bezier(0.4,0,0.2,1),
-            top  300ms cubic-bezier(0.4,0,0.2,1),
-            opacity 150ms ease
-          `;
+          const t = `left 300ms cubic-bezier(0.4,0,0.2,1), top 300ms cubic-bezier(0.4,0,0.2,1), opacity 150ms ease`;
+          indicator.style.transition = t;
+          indicatorLabel.style.transition = t;
         });
       });
     } else {
-      indicator.style.left = x + 'px';
-      indicator.style.top  = y + 'px';
+      indicator.style.left      = x + 'px';
+      indicator.style.top       = y + 'px';
+      indicatorLabel.style.left = (x + 9) + 'px';
+      indicatorLabel.style.top  = (y + 12) + 'px';
     }
   }
 
