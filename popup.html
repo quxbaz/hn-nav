@@ -5,17 +5,37 @@
 <style>
   body { font-family: sans-serif; font-size: 13px; padding: 10px 14px; min-width: 200px; }
   label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .swatches { display: flex; gap: 7px; margin-top: 4px; }
+  .swatch {
+    width: 18px; height: 18px; border-radius: 50%; cursor: pointer;
+    border: 2px solid transparent; box-sizing: border-box;
+  }
+  .swatch.active { border-color: #333; }
 </style>
 </head>
 <body>
   <label>
-    <input type="checkbox" id="smoothScroll">
+    <input type="checkbox" id="smoothScroll" checked>
     Force smooth scroll
   </label>
   <label style="margin-top: 6px;">
     <input type="checkbox" id="showIndicator" checked>
     Show position indicator
   </label>
+  <div style="margin-top: 10px;">
+    <div style="margin-bottom: 4px;">Indicator color</div>
+    <div class="swatches">
+      <div class="swatch" data-color="#ff6600" style="background:#ff6600"></div>
+      <div class="swatch" data-color="#e8232a" style="background:#e8232a"></div>
+      <div class="swatch" data-color="#1a6ef5" style="background:#1a6ef5"></div>
+      <div class="swatch" data-color="#0db050" style="background:#0db050"></div>
+      <div class="swatch" data-color="#8b2be2" style="background:#8b2be2"></div>
+      <div class="swatch" data-color="#f0c000" style="background:#f0c000"></div>
+      <div class="swatch" data-color="#00b0c8" style="background:#00b0c8"></div>
+      <div class="swatch" data-color="#f0177e" style="background:#f0177e"></div>
+      <div class="swatch" data-color="#5db800" style="background:#5db800"></div>
+    </div>
+  </div>
   <div style="margin-top: 10px;">
     <div style="display:flex; justify-content:space-between; margin-bottom: 3px;">
       <span>Scroll offset</span>

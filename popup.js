@@ -2,12 +2,14 @@ const smoothScrollEl  = document.getElementById('smoothScroll');
 const showIndicatorEl = document.getElementById('showIndicator');
 const offsetEl        = document.getElementById('offset');
 const offsetLabel     = document.getElementById('offsetLabel');
+const swatches        = document.querySelectorAll('.swatch');
 
-chrome.storage.sync.get({ smoothScroll: false, showIndicator: true, offset: 20 }, ({ smoothScroll, showIndicator, offset }) => {
+chrome.storage.sync.get({ smoothScroll: true, showIndicator: true, offset: 20, indicatorColor: '#ff6600' }, ({ smoothScroll, showIndicator, offset, indicatorColor }) => {
   smoothScrollEl.checked  = smoothScroll;
   showIndicatorEl.checked = showIndicator;
   offsetEl.value          = offset;
   offsetLabel.textContent = offset + '%';
+  setActiveSwatch(indicatorColor);
 });
 
 smoothScrollEl.addEventListener('change', () => {
@@ -23,3 +25,15 @@ offsetEl.addEventListener('input', () => {
   offsetLabel.textContent = val + '%';
   chrome.storage.sync.set({ offset: val });
 });
+
+swatches.forEach(swatch => {
+  swatch.addEventListener('click', () => {
+    const color = swatch.dataset.color;
+    setActiveSwatch(color);
+    chrome.storage.sync.set({ indicatorColor: color });
+  });
+});
+
+function setActiveSwatch(color) {
+  swatches.forEach(s => s.classList.toggle('active', s.dataset.color === color));
+}

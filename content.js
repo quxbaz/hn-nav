@@ -14,19 +14,21 @@
 
   const history = [];
   let historyPos = -1;
-  let forceSmoothScroll = false;
+  let forceSmoothScroll = true;
   let showIndicator = true;
   let scrollOffset = 0.20;
 
-  chrome.storage.sync.get({ smoothScroll: false, showIndicator: true, offset: 20 }, ({ smoothScroll, showIndicator: si, offset }) => {
+  chrome.storage.sync.get({ smoothScroll: true, showIndicator: true, offset: 20, indicatorColor: '#ff6600' }, ({ smoothScroll, showIndicator: si, offset, indicatorColor }) => {
     forceSmoothScroll = smoothScroll;
     showIndicator = si;
     scrollOffset = offset / 100;
     indicator.style.display = si ? '' : 'none';
+    indicator.style.background = indicatorColor;
   });
-  chrome.storage.onChanged.addListener(({ smoothScroll, showIndicator: si, offset }) => {
-    if (smoothScroll)  forceSmoothScroll = smoothScroll.newValue;
-    if (offset)        scrollOffset = offset.newValue / 100;
+  chrome.storage.onChanged.addListener(({ smoothScroll, showIndicator: si, offset, indicatorColor }) => {
+    if (smoothScroll)    forceSmoothScroll = smoothScroll.newValue;
+    if (offset)          scrollOffset = offset.newValue / 100;
+    if (indicatorColor)  indicator.style.background = indicatorColor.newValue;
     if (si) {
       showIndicator = si.newValue;
       indicator.style.display = si.newValue ? '' : 'none';
