@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "HN Nav",
+  "version": "1.0",
+  "description": "Keyboard navigation for Hacker News comments",
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://news.ycombinator.com/item*"],
+      "js": ["content.js"]
+    }
+  ]
+}
