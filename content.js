@@ -12,11 +12,19 @@
     return document.querySelector('tr.athing.comtr.hn-nav-selected');
   }
 
-  function select(row) {
+  const history = [];
+  let historyPos = -1;
+
+  function select(row, fromHistory = false) {
     const prev = getSelected();
     if (prev) prev.classList.remove('hn-nav-selected');
     if (!row) return;
     row.classList.add('hn-nav-selected');
+    if (!fromHistory) {
+      history.splice(historyPos + 1);
+      history.push(row.id);
+      historyPos = history.length - 1;
+    }
     const rowTop = row.getBoundingClientRect().top + window.scrollY;
     const target = rowTop - window.innerHeight * 0.25;
     window.scrollTo({ top: target, behavior: 'smooth' });
@@ -64,6 +72,18 @@
       for (let i = idx + 1; i < comments.length; i++) {
         if (getIndent(comments[i]) === 0) { select(comments[i]); return; }
       }
+    } else if (dir === 'histback') {
+      if (historyPos > 0) {
+        historyPos--;
+        const row = document.getElementById(history[historyPos]);
+        if (row) select(row, true);
+      }
+    } else if (dir === 'histfwd') {
+      if (historyPos < history.length - 1) {
+        historyPos++;
+        const row = document.getElementById(history[historyPos]);
+        if (row) select(row, true);
+      }
     }
   }
 
@@ -71,7 +91,11 @@
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
 
-    const map = { ArrowLeft: 'up', ArrowRight: 'down', ArrowUp: 'left', ArrowDown: 'right', PageUp: 'pageup', PageDown: 'pagedown' };
+    const map = {
+      ArrowLeft: 'up', ArrowRight: 'down', ArrowUp: 'left', ArrowDown: 'right',
+      PageUp: 'pageup', PageDown: 'pagedown',
+      '.': 'histback', '/': 'histfwd',
+    };
     const dir = map[e.key];
     if (!dir) return;
 
