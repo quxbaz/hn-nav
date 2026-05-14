@@ -16,14 +16,17 @@
   let historyPos = -1;
   let forceSmoothScroll = false;
   let showIndicator = true;
+  let scrollOffset = 0.20;
 
-  chrome.storage.sync.get({ smoothScroll: false, showIndicator: true }, ({ smoothScroll, showIndicator: si }) => {
+  chrome.storage.sync.get({ smoothScroll: false, showIndicator: true, offset: 20 }, ({ smoothScroll, showIndicator: si, offset }) => {
     forceSmoothScroll = smoothScroll;
     showIndicator = si;
+    scrollOffset = offset / 100;
     indicator.style.display = si ? '' : 'none';
   });
-  chrome.storage.onChanged.addListener(({ smoothScroll, showIndicator: si }) => {
-    if (smoothScroll) forceSmoothScroll = smoothScroll.newValue;
+  chrome.storage.onChanged.addListener(({ smoothScroll, showIndicator: si, offset }) => {
+    if (smoothScroll)  forceSmoothScroll = smoothScroll.newValue;
+    if (offset)        scrollOffset = offset.newValue / 100;
     if (si) {
       showIndicator = si.newValue;
       indicator.style.display = si.newValue ? '' : 'none';
@@ -97,7 +100,7 @@
       history.push(row.id);
       historyPos = history.length - 1;
     }
-    const target = row.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.20;
+    const target = row.getBoundingClientRect().top + window.scrollY - window.innerHeight * scrollOffset;
     if (forceSmoothScroll) {
       animatedScrollTo(target);
     } else {
@@ -148,6 +151,11 @@
       for (let i = idx + 1; i < comments.length; i++) {
         if (getIndent(comments[i]) === 0) { select(comments[i]); return; }
       }
+    } else if (dir === 'home') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      select(comments[0]);
+    } else if (dir === 'end') {
+      select(comments[comments.length - 1]);
     } else if (dir === 'histback') {
       if (historyPos > 0) {
         historyPos--;
@@ -175,6 +183,7 @@
       const map = {
         ArrowLeft: 'up', ArrowRight: 'down', ArrowUp: 'left', ArrowDown: 'right',
         PageUp: 'pageup', PageDown: 'pagedown',
+        Home: 'home', End: 'end',
         '.': 'histback', '/': 'histfwd',
       };
       dir = map[e.key];

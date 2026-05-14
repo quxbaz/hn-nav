@@ -16,6 +16,13 @@
     <input type="checkbox" id="showIndicator" checked>
     Show position indicator
   </label>
+  <div style="margin-top: 10px;">
+    <div style="display:flex; justify-content:space-between; margin-bottom: 3px;">
+      <span>Scroll offset</span>
+      <span id="offsetLabel">20%</span>
+    </div>
+    <input type="range" id="offset" min="0" max="50" value="20" style="width:100%;">
+  </div>
   <script src="popup.js"></script>
 </body>
 </html>
