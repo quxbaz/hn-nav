@@ -15,12 +15,19 @@
   const history = [];
   let historyPos = -1;
   let forceSmoothScroll = false;
+  let showIndicator = true;
 
-  chrome.storage.sync.get({ smoothScroll: false }, ({ smoothScroll }) => {
+  chrome.storage.sync.get({ smoothScroll: false, showIndicator: true }, ({ smoothScroll, showIndicator: si }) => {
     forceSmoothScroll = smoothScroll;
+    showIndicator = si;
+    indicator.style.display = si ? '' : 'none';
   });
-  chrome.storage.onChanged.addListener(({ smoothScroll }) => {
+  chrome.storage.onChanged.addListener(({ smoothScroll, showIndicator: si }) => {
     if (smoothScroll) forceSmoothScroll = smoothScroll.newValue;
+    if (si) {
+      showIndicator = si.newValue;
+      indicator.style.display = si.newValue ? '' : 'none';
+    }
   });
 
   function animatedScrollTo(targetY) {
@@ -96,7 +103,7 @@
     } else {
       window.scrollTo({ top: target, behavior: 'smooth' });
     }
-    updateIndicator(row);
+    if (showIndicator) updateIndicator(row);
   }
 
   function navigate(dir) {
