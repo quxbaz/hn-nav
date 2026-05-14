@@ -17,19 +17,22 @@
   let forceSmoothScroll = true;
   let showIndicator = true;
   let scrollOffset = 0.20;
+  let scrollDuration = 325;
 
-  chrome.storage.sync.get({ smoothScroll: true, showIndicator: true, offset: 20, indicatorColor: '#ff6600' }, ({ smoothScroll, showIndicator: si, offset, indicatorColor }) => {
+  chrome.storage.sync.get({ smoothScroll: true, showIndicator: true, offset: 20, indicatorColor: '#ff6600', scrollSpeed: 5 }, ({ smoothScroll, showIndicator: si, offset, indicatorColor, scrollSpeed }) => {
     forceSmoothScroll = smoothScroll;
     showIndicator = si;
     scrollOffset = offset / 100;
+    scrollDuration = speedToDuration(scrollSpeed);
     indicator.style.display = si ? '' : 'none';
     indicatorLabel.style.display = si ? '' : 'none';
     indicator.style.background = indicatorColor;
     indicatorLabel.style.background = indicatorColor;
   });
-  chrome.storage.onChanged.addListener(({ smoothScroll, showIndicator: si, offset, indicatorColor }) => {
+  chrome.storage.onChanged.addListener(({ smoothScroll, showIndicator: si, offset, indicatorColor, scrollSpeed }) => {
     if (smoothScroll)    forceSmoothScroll = smoothScroll.newValue;
     if (offset)          scrollOffset = offset.newValue / 100;
+    if (scrollSpeed)     scrollDuration = speedToDuration(scrollSpeed.newValue);
     if (indicatorColor) {
       indicator.style.background = indicatorColor.newValue;
       indicatorLabel.style.background = indicatorColor.newValue;
@@ -40,10 +43,14 @@
     }
   });
 
+  function speedToDuration(speed) {
+    return Math.round(550 - speed * 45);
+  }
+
   function animatedScrollTo(targetY) {
     const startY = window.scrollY;
     const diff = targetY - startY;
-    const duration = 300;
+    const duration = scrollDuration;
     const startTime = performance.now();
     function step(now) {
       const t = Math.min((now - startTime) / duration, 1);
