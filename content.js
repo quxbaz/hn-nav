@@ -91,12 +91,17 @@
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
 
-    const map = {
-      ArrowLeft: 'up', ArrowRight: 'down', ArrowUp: 'left', ArrowDown: 'right',
-      PageUp: 'pageup', PageDown: 'pagedown',
-      '.': 'histback', '/': 'histfwd',
-    };
-    const dir = map[e.key];
+    let dir;
+    if (e.shiftKey) {
+      const shiftMap = { ArrowLeft: 'histback', ArrowRight: 'histfwd' };
+      dir = shiftMap[e.key];
+    } else {
+      const map = {
+        ArrowLeft: 'up', ArrowRight: 'down', ArrowUp: 'left', ArrowDown: 'right',
+        PageUp: 'pageup', PageDown: 'pagedown',
+      };
+      dir = map[e.key];
+    }
     if (!dir) return;
 
     e.preventDefault();
