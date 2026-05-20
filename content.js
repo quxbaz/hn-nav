@@ -213,7 +213,10 @@
         if (row) select(row, true);
       }
     } else if (dir === 'upvote') {
-      if (current) current.querySelector('a[id^="up_"]')?.click();
+      if (current) {
+        const unlink = current.querySelector('a[id^="un_"]');
+        (unlink || current.querySelector('a[id^="up_"]'))?.click();
+      }
     }
   }
 
