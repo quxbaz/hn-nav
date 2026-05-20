@@ -134,7 +134,7 @@
     }
   }
 
-  function select(row, fromHistory = false) {
+  function select(row, fromHistory = false, scrollTarget = null) {
     const prev = getSelected();
     if (prev) prev.classList.remove('hn-nav-selected');
     if (!row) return;
@@ -144,7 +144,8 @@
       history.push(row.id);
       historyPos = history.length - 1;
     }
-    const target = row.getBoundingClientRect().top + window.scrollY - window.innerHeight * scrollOffset;
+    const target = scrollTarget !== null ? scrollTarget :
+      row.getBoundingClientRect().top + window.scrollY - window.innerHeight * scrollOffset;
     if (forceSmoothScroll) {
       animatedScrollTo(target);
     } else {
@@ -196,8 +197,7 @@
         if (getIndent(comments[i]) === 0) { select(comments[i]); return; }
       }
     } else if (dir === 'home') {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      select(comments[0]);
+      select(comments[0], false, 0);
     } else if (dir === 'end') {
       select(comments[comments.length - 1]);
     } else if (dir === 'histback') {
@@ -212,6 +212,8 @@
         const row = document.getElementById(history[historyPos]);
         if (row) select(row, true);
       }
+    } else if (dir === 'upvote') {
+      if (current) current.querySelector('a[id^="up_"]')?.click();
     }
   }
 
@@ -229,6 +231,7 @@
         PageUp: 'pageup', PageDown: 'pagedown',
         Home: 'home', End: 'end',
         '.': 'histback', '/': 'histfwd',
+        u: 'upvote', w: 'upvote',
       };
       dir = map[e.key];
     }
