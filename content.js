@@ -224,6 +224,21 @@
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
 
+    if (!e.shiftKey && e.key === 'o') {
+      e.preventDefault();
+      const link = document.querySelector('.titleline > a') || document.querySelector('a.titlelink');
+      if (link) {
+        const a = document.createElement('a');
+        a.href = link.href;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+      return;
+    }
+
     let dir;
     if (e.shiftKey) {
       const shiftMap = { ArrowLeft: 'histback', ArrowRight: 'histfwd' };
