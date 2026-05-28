@@ -543,34 +543,45 @@
   helpBox.style.cssText = `
     background: #fff;
     border-radius: 8px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.22);
-    padding: 20px 24px;
-    min-width: 320px;
-    max-width: 480px;
-    font-family: sans-serif;
-    font-size: 13px;
+    box-shadow: 0 4px 6px rgba(32,33,36,0.12), 0 8px 32px rgba(32,33,36,0.18);
+    padding: 16px 20px 20px;
+    width: 380px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 12px;
+    color: #202124;
+    max-height: 90vh;
+    overflow-y: auto;
   `;
+  const kbdCss = 'display:inline-block; background:#f1f3f4; border:1px solid #dadce0; border-bottom-width:2px; border-radius:3px; padding:1px 6px; font-family:monospace; font-size:11px; color:#333; white-space:nowrap;';
+  const rowCss = 'display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid #f0f0f0;';
+  const groupCss = 'font-size:10px; font-weight:600; color:#888; text-transform:uppercase; letter-spacing:0.06em; padding:12px 0 4px;';
+  const k = (...keys) => keys.map(k => `<kbd style="${kbdCss}">${k}</kbd>`).join(' ');
+
   helpBox.innerHTML = `
-    <div style="font-weight:600; font-size:15px; margin-bottom:14px;">Keyboard Shortcuts</div>
-    <table style="width:100%; border-collapse:collapse; line-height:1.8;">
-      <tr><td style="color:#888; width:120px;">←</td><td>Parent comment</td></tr>
-      <tr><td style="color:#888;">→</td><td>First child / next</td></tr>
-      <tr><td style="color:#888;">↑</td><td>Previous sibling</td></tr>
-      <tr><td style="color:#888;">↓</td><td>Next sibling</td></tr>
-      <tr><td style="color:#888;">PgUp / PgDn</td><td>Prev / next top-level</td></tr>
-      <tr><td style="color:#888;">Home</td><td>First comment</td></tr>
-      <tr><td style="color:#888;">End</td><td>Last comment</td></tr>
-      <tr><td style="color:#888; padding-top:8px;">. or Shift+←</td><td style="padding-top:8px;">History back</td></tr>
-      <tr><td style="color:#888;">/ or Shift+→</td><td>History forward</td></tr>
-      <tr><td style="color:#888; padding-top:8px;">u / w</td><td style="padding-top:8px;">Toggle upvote</td></tr>
-      <tr><td style="color:#888;">o</td><td>Open story link</td></tr>
-      <tr><td style="color:#888; padding-top:8px;">q</td><td style="padding-top:8px;">AI summary</td></tr>
-      <tr><td style="color:#888;">Space</td><td>Toggle chat box</td></tr>
-      <tr><td style="color:#888;">Ctrl+Enter</td><td>Submit chat prompt</td></tr>
-      <tr><td style="color:#888;">Esc</td><td>Close chat / dismiss summary</td></tr>
-      <tr><td style="color:#888; padding-top:8px;">?</td><td style="padding-top:8px;">Show this help</td></tr>
-    </table>
-    <div style="margin-top:14px; color:#aaa; font-size:11px; text-align:right;">Press Esc or ? to close</div>
+    <div style="font-weight:600; font-size:14px; margin-bottom:4px; color:#202124;">Keyboard Shortcuts</div>
+
+    <div style="${groupCss}">Navigation</div>
+    <div style="${rowCss}"><span>Parent comment</span>${k('←')}</div>
+    <div style="${rowCss}"><span>First child / next</span>${k('→')}</div>
+    <div style="${rowCss}"><span>Previous sibling</span>${k('↑')}</div>
+    <div style="${rowCss}"><span>Next sibling</span>${k('↓')}</div>
+    <div style="${rowCss}"><span>Prev / next top-level</span><span>${k('PgUp')} ${k('PgDn')}</span></div>
+    <div style="${rowCss}"><span>First / last comment</span><span>${k('Home')} ${k('End')}</span></div>
+    <div style="${rowCss}"><span>History back</span><span>${k('.')} ${k('Shift')}+${k('←')}</span></div>
+    <div style="${rowCss}"><span>History forward</span><span>${k('/')} ${k('Shift')}+${k('→')}</span></div>
+
+    <div style="${groupCss}">Actions</div>
+    <div style="${rowCss}"><span>Toggle upvote</span><span>${k('u')} ${k('w')}</span></div>
+    <div style="${rowCss}"><span>Open story link</span>${k('o')}</div>
+
+    <div style="${groupCss}">AI</div>
+    <div style="${rowCss}"><span>AI summary</span>${k('q')}</div>
+    <div style="${rowCss}"><span>Toggle chat</span>${k('Space')}</div>
+    <div style="${rowCss}"><span>Submit prompt</span>${k('Ctrl')}+${k('Enter')}</div>
+    <div style="${rowCss}"><span>Close chat / dismiss</span>${k('Esc')}</div>
+
+    <div style="${groupCss}">Help</div>
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:5px 0;"><span>Show this dialog</span>${k('?')}</div>
   `;
   helpModal.appendChild(helpBox);
   document.body.appendChild(helpModal);
