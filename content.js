@@ -342,7 +342,7 @@
       : 'margin:2px 0 6px; font-size:13px;';
     if (live) div.innerHTML = '<em style="color:#999">Thinking…</em>';
     else if (role === 'model') div.innerHTML = markdownToHtml(text);
-    else div.textContent = text;
+    else div.textContent = '> ' + text;
     container.appendChild(div);
     return div;
   }
