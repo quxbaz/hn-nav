@@ -310,9 +310,13 @@
 
     submitBtn.addEventListener('click', doSubmit);
 
+    const inputArea = document.createElement('div');
+    inputArea.className = 'hn-nav-chat-input';
+    inputArea.appendChild(textarea);
+    inputArea.appendChild(submitBtn);
+
     widget.appendChild(historyEl);
-    widget.appendChild(textarea);
-    widget.appendChild(submitBtn);
+    widget.appendChild(inputArea);
 
     const history = chatCache.get(row) ?? [];
     for (let i = 0; i < history.length; i += 2) {
@@ -692,9 +696,9 @@
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && e.target.tagName === 'TEXTAREA') {
       const row = getSelected();
-      const chat = row?.querySelector('.hn-nav-chat');
-      if (chat && e.target === chat.querySelector('textarea')) {
-        chat.style.display = 'none';
+      const inputArea = row?.querySelector('.hn-nav-chat-input');
+      if (inputArea && e.target === inputArea.querySelector('textarea')) {
+        inputArea.style.display = 'none';
         e.preventDefault();
         return;
       }
@@ -732,9 +736,17 @@
       if (!row) return;
       const widget = row.querySelector('.hn-nav-chat');
       if (!widget) return;
-      const visible = widget.style.display !== 'none';
-      widget.style.display = visible ? 'none' : '';
-      if (!visible) widget.querySelector('textarea')?.focus();
+      const inputArea = widget.querySelector('.hn-nav-chat-input');
+      if (widget.style.display === 'none') {
+        widget.style.display = '';
+        inputArea.style.display = '';
+        inputArea.querySelector('textarea')?.focus();
+      } else if (inputArea.style.display === 'none') {
+        inputArea.style.display = '';
+        inputArea.querySelector('textarea')?.focus();
+      } else {
+        inputArea.style.display = 'none';
+      }
       return;
     }
 
@@ -746,9 +758,9 @@
 
     if (e.key === 'Escape') {
       const row = getSelected();
-      const chat = row?.querySelector('.hn-nav-chat');
-      if (chat && document.activeElement === chat.querySelector('textarea')) {
-        chat.style.display = 'none';
+      const inputArea = row?.querySelector('.hn-nav-chat-input');
+      if (inputArea && document.activeElement === inputArea.querySelector('textarea')) {
+        inputArea.style.display = 'none';
         return;
       }
       return;
