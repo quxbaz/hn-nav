@@ -486,6 +486,11 @@
 
     if (dir === 'up') {
       // parent; fallback to prev sibling if at top level
+      if (idx === 0) {
+        const target = Math.max(0, window.scrollY - window.innerHeight * 0.35);
+        forceSmoothScroll ? animatedScrollTo(target) : window.scrollBy({ top: -window.innerHeight * 0.35, behavior: 'smooth' });
+        return;
+      }
       for (let i = idx - 1; i >= 0; i--) {
         if (getIndent(comments[i]) < depth) { select(comments[i]); return; }
       }
