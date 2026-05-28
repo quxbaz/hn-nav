@@ -544,9 +544,9 @@
     }
   }
 
-  // STORY_SUMMARY_PLACEHOLDER
+  let storySummarizing = false;
 
-  async function summarizeStory_DISABLED() {
+  async function summarizeStory() {
     const existing = document.getElementById('hn-nav-story-summary');
     if (existing) { existing.remove(); return; }
     if (storySummarizing) return;
@@ -665,6 +665,7 @@
     <div style="${rowCss}"><span>Open story link</span>${k('o')}</div>
 
     <div style="${groupCss}">AI</div>
+    <div style="${rowCss}"><span>Summarize story link</span>${k('Shift')}+${k('Q')}</div>
     <div style="${rowCss}"><span>AI summary</span>${k('q')}</div>
     <div style="${rowCss}"><span>Toggle chat</span>${k('Space')}</div>
     <div style="${rowCss}"><span>Submit prompt</span>${k('Ctrl')}+${k('Enter')}</div>
@@ -697,7 +698,14 @@
     if (e.metaKey || e.ctrlKey || e.altKey) return;
 
     if (e.key === '?') { e.preventDefault(); toggleHelp(); return; }
+    if (e.key === 'Escape' && document.getElementById('hn-nav-story-summary')) { document.getElementById('hn-nav-story-summary').remove(); return; }
     if (e.key === 'Escape' && helpModal.style.display === 'flex') { helpModal.style.display = 'none'; return; }
+
+    if (e.shiftKey && e.key === 'Q') {
+      e.preventDefault();
+      summarizeStory();
+      return;
+    }
 
     if (!e.shiftKey && e.key === 'o') {
       e.preventDefault();
