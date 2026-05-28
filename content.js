@@ -18,21 +18,27 @@
   let showIndicator = true;
   let scrollOffset = 0.20;
   let scrollDuration = 325;
+  let aiBackend = 'gemini';
+  let geminiApiKey = '';
 
-  chrome.storage.sync.get({ smoothScroll: true, showIndicator: true, offset: 20, indicatorColor: '#ff6600', scrollSpeed: 5 }, ({ smoothScroll, showIndicator: si, offset, indicatorColor, scrollSpeed }) => {
+  chrome.storage.sync.get({ smoothScroll: true, showIndicator: true, offset: 20, indicatorColor: '#ff6600', scrollSpeed: 5, aiBackend: 'gemini', geminiApiKey: '' }, ({ smoothScroll, showIndicator: si, offset, indicatorColor, scrollSpeed, aiBackend: ab, geminiApiKey: gak }) => {
     forceSmoothScroll = smoothScroll;
     showIndicator = si;
     scrollOffset = offset / 100;
     scrollDuration = speedToDuration(scrollSpeed);
+    aiBackend = ab;
+    geminiApiKey = gak;
     indicator.style.display = si ? '' : 'none';
     indicatorLabel.style.display = si ? '' : 'none';
     indicator.style.background = indicatorColor;
     indicatorLabel.style.background = indicatorColor;
   });
-  chrome.storage.onChanged.addListener(({ smoothScroll, showIndicator: si, offset, indicatorColor, scrollSpeed }) => {
+  chrome.storage.onChanged.addListener(({ smoothScroll, showIndicator: si, offset, indicatorColor, scrollSpeed, aiBackend: ab, geminiApiKey: gak }) => {
     if (smoothScroll)    forceSmoothScroll = smoothScroll.newValue;
     if (offset)          scrollOffset = offset.newValue / 100;
     if (scrollSpeed)     scrollDuration = speedToDuration(scrollSpeed.newValue);
+    if (ab)              aiBackend = ab.newValue;
+    if (gak)             geminiApiKey = gak.newValue;
     if (indicatorColor) {
       indicator.style.background = indicatorColor.newValue;
       indicatorLabel.style.background = indicatorColor.newValue;
@@ -95,6 +101,77 @@
     transition: opacity 150ms ease;
   `;
   document.body.appendChild(indicatorLabel);
+
+  const summaryOverlay = document.createElement('div');
+  summaryOverlay.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #fff;
+    border: 1px solid #e0e0d5;
+    border-radius: 6px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.13);
+    padding: 10px 14px;
+    max-width: 520px;
+    width: calc(100vw - 40px);
+    z-index: 10000;
+    display: none;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #333;
+    box-sizing: border-box;
+  `;
+  const summaryTitle = document.createElement('div');
+  summaryTitle.style.cssText = 'font-size:10px; font-weight:600; color:#aaa; text-transform:uppercase; letter-spacing:0.07em; margin-bottom:5px;';
+  summaryTitle.textContent = 'Summary';
+  const summaryBody = document.createElement('div');
+  summaryOverlay.appendChild(summaryTitle);
+  summaryOverlay.appendChild(summaryBody);
+  document.body.appendChild(summaryOverlay);
+
+  function showSummary(text, loading = false) {
+    summaryBody.textContent = text;
+    summaryBody.style.color = loading ? '#999' : '#333';
+    summaryOverlay.style.display = 'block';
+  }
+
+  function hideSummary() {
+    summaryOverlay.style.display = 'none';
+  }
+
+  async function summarize() {
+    if (summaryOverlay.style.display !== 'none') { hideSummary(); return; }
+    const row = getSelected();
+    if (!row) return;
+    const textEl = row.querySelector('.commtext');
+    if (!textEl) return;
+    const text = textEl.innerText.trim();
+    if (!text) return;
+
+    showSummary('Summarizing…', true);
+    try {
+      let result;
+      if (aiBackend === 'nano') {
+        if (!window.ai?.languageModel) throw new Error('On-device AI unavailable — enable #prompt-api-for-gemini-nano in chrome://flags');
+        const session = await window.ai.languageModel.create();
+        result = await session.prompt(`Summarize this Hacker News comment in 1–2 sentences:\n\n${text}`);
+      } else {
+        if (!geminiApiKey) throw new Error('No API key — add your Gemini API key in the extension popup');
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${geminiApiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: `Summarize this Hacker News comment in 1–2 sentences:\n\n${text}` }] }] }),
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error.message);
+        result = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? 'No result.';
+      }
+      showSummary(result);
+    } catch (err) {
+      showSummary('Error: ' + err.message);
+    }
+  }
 
   function updateIndicator(row) {
     const td = row.querySelector('td.default');
@@ -236,6 +313,17 @@
         a.click();
         document.body.removeChild(a);
       }
+      return;
+    }
+
+    if (!e.shiftKey && e.key === 'q') {
+      e.preventDefault();
+      summarize();
+      return;
+    }
+
+    if (e.key === 'Escape') {
+      hideSummary();
       return;
     }
 

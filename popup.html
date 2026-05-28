@@ -50,6 +50,21 @@
     </div>
     <input type="range" id="scrollSpeed" min="1" max="10" value="5" style="width:100%;">
   </div>
+  <div style="margin-top: 10px; border-top: 1px solid #e8e8e8; padding-top: 10px;">
+    <div style="margin-bottom: 5px;">AI Summary <span style="color:#aaa">(q)</span></div>
+    <label>
+      <input type="radio" name="aiBackend" id="backendGemini" value="gemini">
+      Gemini API
+    </label>
+    <label style="margin-top: 3px;">
+      <input type="radio" name="aiBackend" id="backendNano" value="nano">
+      On-device (Nano)
+    </label>
+    <div id="apiKeySection" style="margin-top: 6px;">
+      <input type="password" id="geminiApiKey" placeholder="API key"
+             style="width:100%; box-sizing:border-box; font-size:12px; padding:3px 6px; border:1px solid #ccc; border-radius:3px;">
+    </div>
+  </div>
   <script src="popup.js"></script>
 </body>
 </html>
