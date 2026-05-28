@@ -194,7 +194,12 @@
     const placeholder = document.createElement('div');
     placeholder.className = 'hn-nav-summary';
     placeholder.style.cssText = 'margin-top:8px; padding-top:8px; border-top:1px solid #e8e8e0;';
-    placeholder.innerHTML = '<em style="color:#999;font-size:0.9em">Summarizing…</em>';
+    const header = document.createElement('div');
+    header.style.cssText = 'font-size:10px; color:#aaa; font-family:monospace; margin-bottom:4px;';
+    const body = document.createElement('div');
+    body.innerHTML = '<em style="color:#999;font-size:0.9em">Summarizing…</em>';
+    placeholder.appendChild(header);
+    placeholder.appendChild(body);
     textEl.appendChild(placeholder);
     summarizing.add(row);
 
@@ -202,14 +207,6 @@
       const prompt = buildPrompt(row);
       const system = 'You are a helpful assistant that summarizes Hacker News comments. Be clear and concise. Use the thread context to understand what is being replied to.';
       let modelName;
-
-      // Replace placeholder with header + live body
-      placeholder.innerHTML = '';
-      const header = document.createElement('div');
-      header.style.cssText = 'font-size:10px; color:#aaa; font-family:monospace; margin-bottom:4px;';
-      const body = document.createElement('div');
-      placeholder.appendChild(header);
-      placeholder.appendChild(body);
 
       if (aiBackend === 'nano') {
         if (!window.ai?.languageModel) throw new Error('On-device AI unavailable — enable #prompt-api-for-gemini-nano in chrome://flags');
@@ -223,8 +220,9 @@
           const { done, value } = await reader.read();
           if (done) break;
           fullText = value; // Prompt API yields cumulative text
-          body.innerHTML = markdownToHtml(fullText);
+          body.textContent = fullText;
         }
+        body.innerHTML = markdownToHtml(fullText);
         summaryCache.set(row, { html: body.innerHTML, modelName });
       } else {
         if (!geminiApiKey) throw new Error('No API key — add your Gemini API key in the extension popup');
@@ -236,7 +234,7 @@
           body: JSON.stringify({
             systemInstruction: { parts: [{ text: system }] },
             contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { maxOutputTokens: 250 },
+            generationConfig: {},
           }),
         });
         if (!res.ok) { const d = await res.json(); throw new Error(d.error?.message ?? `HTTP ${res.status}`); }
@@ -251,18 +249,20 @@
           buf = lines.pop();
           for (const line of lines) {
             if (!line.startsWith('data: ')) continue;
-            try {
-              const json = JSON.parse(line.slice(6));
-              if (json.error) throw new Error(json.error.message);
-              fullText += json.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-              body.innerHTML = markdownToHtml(fullText);
-            } catch (_) {}
+            const raw = line.slice(6);
+            if (raw === '[DONE]') continue;
+            let json;
+            try { json = JSON.parse(raw); } catch (_) { continue; }
+            if (json.error) throw new Error(json.error.message);
+            fullText += json.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+            body.textContent = fullText;
           }
         }
+        body.innerHTML = markdownToHtml(fullText);
         summaryCache.set(row, { html: body.innerHTML, modelName });
       }
     } catch (err) {
-      placeholder.remove();
+      body.textContent = 'Error: ' + err.message;
     }
     summarizing.delete(row);
   }
