@@ -703,7 +703,6 @@
     if (e.metaKey || e.ctrlKey || e.altKey) return;
 
     if (e.key === '?') { e.preventDefault(); toggleHelp(); return; }
-    if (e.key === 'Escape' && document.getElementById('hn-nav-story-summary')) { document.getElementById('hn-nav-story-summary').remove(); return; }
     if (e.key === 'Escape' && helpModal.style.display === 'flex') { helpModal.style.display = 'none'; return; }
 
     if (e.shiftKey && e.key === 'Q') {
@@ -747,13 +746,11 @@
 
     if (e.key === 'Escape') {
       const row = getSelected();
-      if (!row) return;
-      const chat = row.querySelector('.hn-nav-chat');
+      const chat = row?.querySelector('.hn-nav-chat');
       if (chat && document.activeElement === chat.querySelector('textarea')) {
         chat.style.display = 'none';
         return;
       }
-      row.querySelector('.hn-nav-summary')?.remove();
       return;
     }
 
