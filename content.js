@@ -485,16 +485,17 @@
     const depth = getIndent(current);
 
     if (dir === 'up') {
-      // parent; fallback to prev sibling if at top level
-      if (idx === 0) {
-        const target = Math.max(0, window.scrollY - window.innerHeight * 0.35);
-        forceSmoothScroll ? animatedScrollTo(target) : window.scrollBy({ top: -window.innerHeight * 0.35, behavior: 'smooth' });
-        return;
-      }
+      // parent
       for (let i = idx - 1; i >= 0; i--) {
         if (getIndent(comments[i]) < depth) { select(comments[i]); return; }
       }
-      navigate('left');
+      // fallback: prev sibling
+      for (let i = idx - 1; i >= 0; i--) {
+        if (getIndent(comments[i]) <= depth) { select(comments[i]); return; }
+      }
+      // nothing to navigate to — scroll up
+      const target = Math.max(0, window.scrollY - window.innerHeight * 0.35);
+      forceSmoothScroll ? animatedScrollTo(target) : window.scrollBy({ top: -window.innerHeight * 0.35, behavior: 'smooth' });
     } else if (dir === 'down') {
       // first child if one exists, otherwise next in reading order
       if (idx + 1 < comments.length) {
