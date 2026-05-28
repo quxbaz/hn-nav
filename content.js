@@ -205,7 +205,7 @@
 
     try {
       const prompt = buildPrompt(row);
-      const system = 'You are a helpful assistant that summarizes Hacker News comments. Be clear and concise. Use the thread context to understand what is being replied to. Preserve specific numbers, examples, product names, and concrete details — do not generalize what the author stated concretely.';
+      const system = 'You are a helpful assistant that summarizes Hacker News comments. Write the summary in first person as if you are the author — do not refer to "the commenter" or "the author." Be clear and concise. Use the thread context to understand what is being replied to. Preserve specific numbers, examples, product names, and concrete details — do not generalize what the author stated concretely.';
       let modelName;
 
       if (aiBackend === 'nano') {
