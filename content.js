@@ -102,75 +102,83 @@
   `;
   document.body.appendChild(indicatorLabel);
 
-  const summaryOverlay = document.createElement('div');
-  summaryOverlay.style.cssText = `
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: #fff;
-    border: 1px solid #e0e0d5;
-    border-radius: 6px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.13);
-    padding: 10px 14px;
-    max-width: 520px;
-    width: calc(100vw - 40px);
-    z-index: 10000;
-    display: none;
-    font-size: 13px;
-    line-height: 1.5;
-    color: #333;
-    box-sizing: border-box;
-  `;
-  const summaryTitle = document.createElement('div');
-  summaryTitle.style.cssText = 'font-size:10px; font-weight:600; color:#aaa; text-transform:uppercase; letter-spacing:0.07em; margin-bottom:5px;';
-  summaryTitle.textContent = 'Summary';
-  const summaryBody = document.createElement('div');
-  summaryOverlay.appendChild(summaryTitle);
-  summaryOverlay.appendChild(summaryBody);
-  document.body.appendChild(summaryOverlay);
+  const GEMINI_MODEL = 'gemini-3.5-flash';
 
-  function showSummary(text, loading = false) {
-    summaryBody.textContent = text;
-    summaryBody.style.color = loading ? '#999' : '#333';
-    summaryOverlay.style.display = 'block';
+  function markdownToHtml(md) {
+    let s = md
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    const lines = s.split('\n');
+    const out = [];
+    let inList = false;
+    for (const line of lines) {
+      const bullet = line.match(/^[*\-]\s+(.*)/);
+      if (bullet) {
+        if (!inList) { out.push('<ul style="margin:4px 0;padding-left:18px;">'); inList = true; }
+        out.push(`<li>${bullet[1]}</li>`);
+      } else {
+        if (inList) { out.push('</ul>'); inList = false; }
+        out.push(line.trim() ? `<p style="margin:4px 0">${line}</p>` : '');
+      }
+    }
+    if (inList) out.push('</ul>');
+    return out.join('');
   }
-
-  function hideSummary() {
-    summaryOverlay.style.display = 'none';
-  }
+  const summarizing = new WeakSet();
 
   async function summarize() {
-    if (summaryOverlay.style.display !== 'none') { hideSummary(); return; }
     const row = getSelected();
     if (!row) return;
+    if (summarizing.has(row)) return;
+
     const textEl = row.querySelector('.commtext');
     if (!textEl) return;
+
+    const existing = textEl.querySelector('.hn-nav-summary');
+    if (existing) { existing.remove(); return; }
+
     const text = textEl.innerText.trim();
     if (!text) return;
 
-    showSummary('Summarizing…', true);
+    const placeholder = document.createElement('div');
+    placeholder.className = 'hn-nav-summary';
+    placeholder.style.cssText = 'margin-top:8px; padding-top:8px; border-top:1px solid #e8e8e0;';
+    placeholder.innerHTML = '<em style="color:#999;font-size:0.9em">Summarizing…</em>';
+    textEl.appendChild(placeholder);
+    summarizing.add(row);
+
     try {
-      let result;
+      let result, modelName;
       if (aiBackend === 'nano') {
         if (!window.ai?.languageModel) throw new Error('On-device AI unavailable — enable #prompt-api-for-gemini-nano in chrome://flags');
         const session = await window.ai.languageModel.create();
-        result = await session.prompt(`Summarize this Hacker News comment in 1–2 sentences:\n\n${text}`);
+        result = await session.prompt(`Summarize this Hacker News comment clearly and concisely:\n\n${text}`);
+        modelName = 'Gemini Nano (on-device)';
       } else {
         if (!geminiApiKey) throw new Error('No API key — add your Gemini API key in the extension popup');
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${geminiApiKey}`, {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiApiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents: [{ parts: [{ text: `Summarize this Hacker News comment in 1–2 sentences:\n\n${text}` }] }] }),
+          body: JSON.stringify({ contents: [{ parts: [{ text: `Summarize this Hacker News comment clearly and concisely:\n\n${text}` }] }] }),
         });
         const data = await res.json();
         if (data.error) throw new Error(data.error.message);
         result = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? 'No result.';
+        modelName = GEMINI_MODEL;
       }
-      showSummary(result);
+      const header = document.createElement('div');
+      header.style.cssText = 'font-size:10px; color:#aaa; font-family:monospace; margin-bottom:4px;';
+      header.textContent = modelName;
+      const body = document.createElement('div');
+      body.innerHTML = markdownToHtml(result);
+      placeholder.innerHTML = '';
+      placeholder.appendChild(header);
+      placeholder.appendChild(body);
     } catch (err) {
-      showSummary('Error: ' + err.message);
+      placeholder.remove();
     }
+    summarizing.delete(row);
   }
 
   function updateIndicator(row) {
@@ -323,7 +331,8 @@
     }
 
     if (e.key === 'Escape') {
-      hideSummary();
+      const row = getSelected();
+      row?.querySelector('.hn-nav-summary')?.remove();
       return;
     }
 
