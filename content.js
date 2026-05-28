@@ -126,6 +126,51 @@
     return out.join('');
   }
   const summarizing = new WeakSet();
+  const summaryCache = new WeakMap();
+
+  function renderSummary(textEl, html, modelName) {
+    const div = document.createElement('div');
+    div.className = 'hn-nav-summary';
+    div.style.cssText = 'margin-top:8px; padding-top:8px; border-top:1px solid #e8e8e0;';
+    const header = document.createElement('div');
+    header.style.cssText = 'font-size:10px; color:#aaa; font-family:monospace; margin-bottom:4px;';
+    header.textContent = modelName;
+    const body = document.createElement('div');
+    body.innerHTML = html;
+    div.appendChild(header);
+    div.appendChild(body);
+    textEl.appendChild(div);
+  }
+
+  function buildPrompt(row) {
+    const storyEl = document.querySelector('.titleline > a');
+    const storyTitle = storyEl?.textContent ?? '';
+    const storyUrl = storyEl?.href ?? '';
+
+    const comments = getComments();
+    const idx = comments.indexOf(row);
+    const ancestors = [];
+    let depth = getIndent(row);
+    for (let i = idx - 1; i >= 0 && ancestors.length < 3; i--) {
+      const d = getIndent(comments[i]);
+      if (d < depth) {
+        const t = comments[i].querySelector('.commtext')?.innerText?.trim() ?? '';
+        ancestors.unshift(t.length > 300 ? t.slice(0, 300) + '…' : t);
+        depth = d;
+        if (d === 0) break;
+      }
+    }
+
+    const commentText = row.querySelector('.commtext')?.innerText?.trim() ?? '';
+    const parts = [];
+    if (storyTitle) parts.push(`Story: ${storyTitle}\nURL: ${storyUrl}`);
+    if (ancestors.length) {
+      parts.push('Thread context (oldest to newest):\n' +
+        ancestors.map((t, i) => `${'  '.repeat(i)}${t}`).join('\n\n'));
+    }
+    parts.push(`Comment to summarize:\n${commentText}`);
+    return parts.join('\n\n---\n\n');
+  }
 
   async function summarize() {
     const row = getSelected();
@@ -138,8 +183,13 @@
     const existing = textEl.querySelector('.hn-nav-summary');
     if (existing) { existing.remove(); return; }
 
-    const text = textEl.innerText.trim();
-    if (!text) return;
+    if (summaryCache.has(row)) {
+      const { html, modelName } = summaryCache.get(row);
+      renderSummary(textEl, html, modelName);
+      return;
+    }
+
+    if (!textEl.innerText.trim()) return;
 
     const placeholder = document.createElement('div');
     placeholder.className = 'hn-nav-summary';
@@ -149,32 +199,68 @@
     summarizing.add(row);
 
     try {
-      let result, modelName;
-      if (aiBackend === 'nano') {
-        if (!window.ai?.languageModel) throw new Error('On-device AI unavailable — enable #prompt-api-for-gemini-nano in chrome://flags');
-        const session = await window.ai.languageModel.create();
-        result = await session.prompt(`Summarize this Hacker News comment clearly and concisely:\n\n${text}`);
-        modelName = 'Gemini Nano (on-device)';
-      } else {
-        if (!geminiApiKey) throw new Error('No API key — add your Gemini API key in the extension popup');
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiApiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents: [{ parts: [{ text: `Summarize this Hacker News comment clearly and concisely:\n\n${text}` }] }] }),
-        });
-        const data = await res.json();
-        if (data.error) throw new Error(data.error.message);
-        result = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? 'No result.';
-        modelName = GEMINI_MODEL;
-      }
+      const prompt = buildPrompt(row);
+      const system = 'You are a helpful assistant that summarizes Hacker News comments. Be clear and concise. Use the thread context to understand what is being replied to.';
+      let modelName;
+
+      // Replace placeholder with header + live body
+      placeholder.innerHTML = '';
       const header = document.createElement('div');
       header.style.cssText = 'font-size:10px; color:#aaa; font-family:monospace; margin-bottom:4px;';
-      header.textContent = modelName;
       const body = document.createElement('div');
-      body.innerHTML = markdownToHtml(result);
-      placeholder.innerHTML = '';
       placeholder.appendChild(header);
       placeholder.appendChild(body);
+
+      if (aiBackend === 'nano') {
+        if (!window.ai?.languageModel) throw new Error('On-device AI unavailable — enable #prompt-api-for-gemini-nano in chrome://flags');
+        modelName = 'Gemini Nano (on-device)';
+        header.textContent = modelName;
+        const session = await window.ai.languageModel.create({ systemPrompt: system });
+        const stream = session.promptStreaming(prompt);
+        const reader = stream.getReader();
+        let fullText = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          fullText = value; // Prompt API yields cumulative text
+          body.innerHTML = markdownToHtml(fullText);
+        }
+        summaryCache.set(row, { html: body.innerHTML, modelName });
+      } else {
+        if (!geminiApiKey) throw new Error('No API key — add your Gemini API key in the extension popup');
+        modelName = GEMINI_MODEL;
+        header.textContent = modelName;
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:streamGenerateContent?alt=sse&key=${geminiApiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: system }] },
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { maxOutputTokens: 250 },
+          }),
+        });
+        if (!res.ok) { const d = await res.json(); throw new Error(d.error?.message ?? `HTTP ${res.status}`); }
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '', fullText = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const lines = buf.split('\n');
+          buf = lines.pop();
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            try {
+              const json = JSON.parse(line.slice(6));
+              if (json.error) throw new Error(json.error.message);
+              fullText += json.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+              body.innerHTML = markdownToHtml(fullText);
+            } catch (_) {}
+          }
+        }
+        summaryCache.set(row, { html: body.innerHTML, modelName });
+      }
     } catch (err) {
       placeholder.remove();
     }
