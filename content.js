@@ -515,6 +515,8 @@
         const row = document.getElementById(history[historyPos]);
         if (row) select(row, true);
       }
+    } else if (dir === 'dfsback') {
+      if (idx > 0) select(comments[idx - 1]);
     } else if (dir === 'histfwd') {
       if (historyPos < history.length - 1) {
         historyPos++;
@@ -567,6 +569,7 @@
     <div style="${rowCss}"><span>Next sibling</span>${k('↓')}</div>
     <div style="${rowCss}"><span>Prev / next top-level</span><span>${k('PgUp')} ${k('PgDn')}</span></div>
     <div style="${rowCss}"><span>First / last comment</span><span>${k('Home')} ${k('End')}</span></div>
+    <div style="${rowCss}"><span>Last node of prev sibling</span>${k('Shift')}+${k('↑')}</div>
     <div style="${rowCss}"><span>History back</span><span>${k('.')} ${k('Shift')}+${k('←')}</span></div>
     <div style="${rowCss}"><span>History forward</span><span>${k('/')} ${k('Shift')}+${k('→')}</span></div>
 
@@ -656,7 +659,7 @@
 
     let dir;
     if (e.shiftKey) {
-      const shiftMap = { ArrowLeft: 'histback', ArrowRight: 'histfwd' };
+      const shiftMap = { ArrowLeft: 'histback', ArrowRight: 'histfwd', ArrowUp: 'dfsback' };
       dir = shiftMap[e.key];
     } else {
       const map = {
