@@ -113,8 +113,16 @@
     const out = [];
     let inList = false;
     for (const line of lines) {
+      const h3 = line.match(/^###\s+(.*)/);
+      const h2 = line.match(/^##\s+(.*)/);
+      const h1 = line.match(/^#\s+(.*)/);
       const bullet = line.match(/^[*\-]\s+(.*)/);
-      if (bullet) {
+      if (h3 || h2 || h1) {
+        if (inList) { out.push('</ul>'); inList = false; }
+        const txt = (h3 || h2 || h1)[1];
+        const tag = h3 ? 'h4' : h2 ? 'h3' : 'h2';
+        out.push(`<${tag} style="margin:8px 0 3px;font-size:13px;">${txt}</${tag}>`);
+      } else if (bullet) {
         if (!inList) { out.push('<ul style="margin:4px 0;padding-left:18px;">'); inList = true; }
         out.push(`<li>${bullet[1]}</li>`);
       } else {
@@ -498,6 +506,11 @@
         if (getIndent(comments[i]) <= depth) { select(comments[i]); return; }
       }
     } else if (dir === 'pageup') {
+      if (idx === 0) {
+        const target = Math.max(0, window.scrollY - window.innerHeight * 0.85);
+        forceSmoothScroll ? animatedScrollTo(target) : window.scrollBy({ top: -window.innerHeight * 0.85, behavior: 'smooth' });
+        return;
+      }
       for (let i = idx - 1; i >= 0; i--) {
         if (getIndent(comments[i]) === 0) { select(comments[i]); return; }
       }
@@ -529,6 +542,80 @@
         (unlink || current.querySelector('a[id^="up_"]'))?.click();
       }
     }
+  }
+
+  // STORY_SUMMARY_PLACEHOLDER
+
+  async function summarizeStory_DISABLED() {
+    const existing = document.getElementById('hn-nav-story-summary');
+    if (existing) { existing.remove(); return; }
+    if (storySummarizing) return;
+
+    const link = document.querySelector('.titleline > a') || document.querySelector('a.titlelink');
+    if (!link) return;
+
+    const commentForm = document.querySelector('form[action="comment"]');
+    const insertBefore = commentForm?.closest('tr');
+    const tbody = insertBefore?.parentElement;
+    if (!tbody) return;
+
+    const summaryRow = document.createElement('tr');
+    summaryRow.id = 'hn-nav-story-summary';
+    const pad = document.createElement('td');
+    pad.setAttribute('colspan', '2');
+    const summaryTd = document.createElement('td');
+    summaryTd.style.cssText = 'padding: 6px 0 14px;';
+    const header = document.createElement('div');
+    header.style.cssText = 'font-size:10px; color:#aaa; font-family:monospace; margin-bottom:5px;';
+    header.textContent = GEMINI_MODEL;
+    const body = document.createElement('div');
+    body.innerHTML = '<em style="color:#999;font-size:0.9em">Summarizing article…</em>';
+    summaryTd.appendChild(header);
+    summaryTd.appendChild(body);
+    summaryRow.appendChild(pad);
+    summaryRow.appendChild(summaryTd);
+    tbody.insertBefore(summaryRow, insertBefore);
+    storySummarizing = true;
+
+    try {
+      if (!geminiApiKey) throw new Error('No API key — add your Gemini API key in the extension popup');
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:streamGenerateContent?alt=sse&key=${geminiApiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: 'Summarize this article clearly and concisely. Preserve key facts, numbers, and specific details.' }] },
+          contents: [{ parts: [
+            { fileData: { mimeType: 'text/html', fileUri: link.href } },
+            { text: 'Summarize this article.' },
+          ]}],
+          generationConfig: {},
+        }),
+      });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error?.message ?? `HTTP ${res.status}`); }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '', fullText = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const raw = line.slice(6);
+          if (raw === '[DONE]') continue;
+          let json; try { json = JSON.parse(raw); } catch (_) { continue; }
+          if (json.error) throw new Error(json.error.message);
+          fullText += json.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+          body.textContent = fullText;
+        }
+      }
+      body.innerHTML = markdownToHtml(fullText);
+    } catch (err) {
+      body.textContent = 'Error: ' + err.message;
+    }
+    storySummarizing = false;
   }
 
   const helpModal = document.createElement('div');
