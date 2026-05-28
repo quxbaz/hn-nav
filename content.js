@@ -139,7 +139,8 @@
     body.innerHTML = html;
     div.appendChild(header);
     div.appendChild(body);
-    textEl.appendChild(div);
+    const chat = textEl.querySelector('.hn-nav-chat');
+    chat ? textEl.insertBefore(div, chat) : textEl.appendChild(div);
   }
 
   function buildPrompt(row) {
@@ -200,7 +201,8 @@
     body.innerHTML = '<em style="color:#999;font-size:0.9em">Summarizing…</em>';
     placeholder.appendChild(header);
     placeholder.appendChild(body);
-    textEl.appendChild(placeholder);
+    const chatWidget = textEl.querySelector('.hn-nav-chat');
+    chatWidget ? textEl.insertBefore(placeholder, chatWidget) : textEl.appendChild(placeholder);
     summarizing.add(row);
 
     try {
@@ -267,6 +269,137 @@
     summarizing.delete(row);
   }
 
+  const chatCache = new WeakMap(); // row → [{role, text}]
+  const CHAT_SYSTEM = 'You are a helpful assistant answering questions about a Hacker News comment. Respond factually from your own perspective — not as the comment author. Be concise and direct.';
+
+  function buildChatWidget(row) {
+    const widget = document.createElement('div');
+    widget.className = 'hn-nav-chat';
+    widget.style.cssText = 'margin-top:8px; padding-top:8px; border-top:1px solid #e8e8e0; display:none;';
+
+    const historyEl = document.createElement('div');
+    const textarea = document.createElement('textarea');
+    textarea.rows = 3;
+    textarea.placeholder = 'Ask about this comment…';
+    textarea.style.cssText = 'width:100%; box-sizing:border-box; font-size:13px; font-family:inherit; border:1px solid #ddd; border-radius:3px; padding:5px 7px; resize:none; outline:none; margin-top:4px; display:block;';
+
+    const submitBtn = document.createElement('button');
+    submitBtn.textContent = 'Send prompt';
+    submitBtn.style.cssText = 'display:block; margin-top:6px; margin-left:auto; font-size:12px; padding:4px 12px; cursor:pointer; border:none; border-radius:4px; background:linear-gradient(180deg,#2e7cf6,#1460d8); color:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.15); border:1px solid #0f4fbb; outline:none; font-weight:500;';
+
+    const doSubmit = () => {
+      const q = textarea.value.trim();
+      if (!q || textarea.disabled) return;
+      textarea.value = '';
+      textarea.disabled = true;
+      submitBtn.disabled = true;
+      submitQuestion(row, historyEl, q).finally(() => {
+        textarea.disabled = false;
+        submitBtn.disabled = false;
+        textarea.focus();
+      });
+    };
+
+    submitBtn.addEventListener('click', doSubmit);
+
+    widget.appendChild(historyEl);
+    widget.appendChild(textarea);
+    widget.appendChild(submitBtn);
+
+    const history = chatCache.get(row) ?? [];
+    for (let i = 0; i < history.length; i += 2) {
+      appendChatMsg(historyEl, 'user', history[i].text);
+      if (history[i + 1]) appendChatMsg(historyEl, 'model', history[i + 1].text);
+    }
+
+    textarea.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && e.ctrlKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        doSubmit();
+      }
+    });
+
+    return widget;
+  }
+
+  function appendChatMsg(container, role, text, live = false) {
+    const div = document.createElement('div');
+    div.style.cssText = role === 'user'
+      ? 'margin:6px 0 2px; font-size:12px; color:#555; font-style:italic;'
+      : 'margin:2px 0 6px; font-size:13px;';
+    if (live) div.innerHTML = '<em style="color:#999">Thinking…</em>';
+    else if (role === 'model') div.innerHTML = markdownToHtml(text);
+    else div.textContent = text;
+    container.appendChild(div);
+    return div;
+  }
+
+  async function submitQuestion(row, historyEl, question) {
+    appendChatMsg(historyEl, 'user', question);
+    const answerDiv = appendChatMsg(historyEl, 'model', '', true);
+
+    if (!chatCache.has(row)) chatCache.set(row, []);
+    const history = chatCache.get(row);
+    const context = buildPrompt(row);
+
+    const contents = history.length === 0
+      ? [{ role: 'user', parts: [{ text: `${context}\n\nQuestion: ${question}` }] }]
+      : [
+          { role: 'user', parts: [{ text: `${context}\n\nQuestion: ${history[0].text}` }] },
+          ...history.slice(1).map(h => ({ role: h.role, parts: [{ text: h.text }] })),
+          { role: 'user', parts: [{ text: question }] },
+        ];
+
+    try {
+      let fullText = '';
+      if (aiBackend === 'nano') {
+        if (!window.ai?.languageModel) throw new Error('On-device AI unavailable');
+        const msgs = contents.map(c => ({ role: c.role, content: c.parts[0].text }));
+        const session = await window.ai.languageModel.create({ systemPrompt: CHAT_SYSTEM, initialPrompts: msgs.slice(0, -1) });
+        const stream = session.promptStreaming(contents.at(-1).parts[0].text);
+        const reader = stream.getReader();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          fullText = value;
+          answerDiv.textContent = fullText;
+        }
+      } else {
+        if (!geminiApiKey) throw new Error('No API key — add your Gemini API key in the extension popup');
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:streamGenerateContent?alt=sse&key=${geminiApiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ systemInstruction: { parts: [{ text: CHAT_SYSTEM }] }, contents, generationConfig: {} }),
+        });
+        if (!res.ok) { const d = await res.json(); throw new Error(d.error?.message ?? `HTTP ${res.status}`); }
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const lines = buf.split('\n');
+          buf = lines.pop();
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const raw = line.slice(6);
+            if (raw === '[DONE]') continue;
+            let json; try { json = JSON.parse(raw); } catch (_) { continue; }
+            if (json.error) throw new Error(json.error.message);
+            fullText += json.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+            answerDiv.textContent = fullText;
+          }
+        }
+      }
+      answerDiv.innerHTML = markdownToHtml(fullText);
+      history.push({ role: 'user', text: question }, { role: 'model', text: fullText });
+    } catch (err) {
+      answerDiv.textContent = 'Error: ' + err.message;
+    }
+  }
+
   function updateIndicator(row) {
     const td = row.querySelector('td.default');
     if (!td) return;
@@ -307,7 +440,10 @@
 
   function select(row, fromHistory = false, scrollTarget = null) {
     const prev = getSelected();
-    if (prev) prev.classList.remove('hn-nav-selected');
+    if (prev) {
+      prev.classList.remove('hn-nav-selected');
+      prev.querySelector('.hn-nav-chat')?.remove();
+    }
     if (!row) return;
     row.classList.add('hn-nav-selected');
     if (!fromHistory) {
@@ -323,6 +459,8 @@
       window.scrollTo({ top: target, behavior: 'smooth' });
     }
     if (showIndicator) updateIndicator(row);
+    const textEl = row.querySelector('.commtext');
+    if (textEl) textEl.appendChild(buildChatWidget(row));
   }
 
   function navigate(dir) {
@@ -392,6 +530,15 @@
   }
 
   document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && e.target.tagName === 'TEXTAREA') {
+      const row = getSelected();
+      const chat = row?.querySelector('.hn-nav-chat');
+      if (chat && e.target === chat.querySelector('textarea')) {
+        chat.style.display = 'none';
+        e.preventDefault();
+        return;
+      }
+    }
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
 
@@ -410,6 +557,18 @@
       return;
     }
 
+    if (!e.shiftKey && e.key === ' ') {
+      e.preventDefault();
+      const row = getSelected();
+      if (!row) return;
+      const widget = row.querySelector('.hn-nav-chat');
+      if (!widget) return;
+      const visible = widget.style.display !== 'none';
+      widget.style.display = visible ? 'none' : '';
+      if (!visible) widget.querySelector('textarea')?.focus();
+      return;
+    }
+
     if (!e.shiftKey && e.key === 'q') {
       e.preventDefault();
       summarize();
@@ -418,7 +577,13 @@
 
     if (e.key === 'Escape') {
       const row = getSelected();
-      row?.querySelector('.hn-nav-summary')?.remove();
+      if (!row) return;
+      const chat = row.querySelector('.hn-nav-chat');
+      if (chat && document.activeElement === chat.querySelector('textarea')) {
+        chat.style.display = 'none';
+        return;
+      }
+      row.querySelector('.hn-nav-summary')?.remove();
       return;
     }
 
