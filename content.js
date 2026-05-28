@@ -529,6 +529,59 @@
     }
   }
 
+  const helpModal = document.createElement('div');
+  helpModal.style.cssText = `
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 99999;
+    align-items: center;
+    justify-content: center;
+  `;
+  const helpBox = document.createElement('div');
+  helpBox.style.cssText = `
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.22);
+    padding: 20px 24px;
+    min-width: 320px;
+    max-width: 480px;
+    font-family: sans-serif;
+    font-size: 13px;
+  `;
+  helpBox.innerHTML = `
+    <div style="font-weight:600; font-size:15px; margin-bottom:14px;">Keyboard Shortcuts</div>
+    <table style="width:100%; border-collapse:collapse; line-height:1.8;">
+      <tr><td style="color:#888; width:120px;">←</td><td>Parent comment</td></tr>
+      <tr><td style="color:#888;">→</td><td>First child / next</td></tr>
+      <tr><td style="color:#888;">↑</td><td>Previous sibling</td></tr>
+      <tr><td style="color:#888;">↓</td><td>Next sibling</td></tr>
+      <tr><td style="color:#888;">PgUp / PgDn</td><td>Prev / next top-level</td></tr>
+      <tr><td style="color:#888;">Home</td><td>First comment</td></tr>
+      <tr><td style="color:#888;">End</td><td>Last comment</td></tr>
+      <tr><td style="color:#888; padding-top:8px;">. or Shift+←</td><td style="padding-top:8px;">History back</td></tr>
+      <tr><td style="color:#888;">/ or Shift+→</td><td>History forward</td></tr>
+      <tr><td style="color:#888; padding-top:8px;">u / w</td><td style="padding-top:8px;">Toggle upvote</td></tr>
+      <tr><td style="color:#888;">o</td><td>Open story link</td></tr>
+      <tr><td style="color:#888; padding-top:8px;">q</td><td style="padding-top:8px;">AI summary</td></tr>
+      <tr><td style="color:#888;">Space</td><td>Toggle chat box</td></tr>
+      <tr><td style="color:#888;">Ctrl+Enter</td><td>Submit chat prompt</td></tr>
+      <tr><td style="color:#888;">Esc</td><td>Close chat / dismiss summary</td></tr>
+      <tr><td style="color:#888; padding-top:8px;">?</td><td style="padding-top:8px;">Show this help</td></tr>
+    </table>
+    <div style="margin-top:14px; color:#aaa; font-size:11px; text-align:right;">Press Esc or ? to close</div>
+  `;
+  helpModal.appendChild(helpBox);
+  document.body.appendChild(helpModal);
+
+  helpModal.addEventListener('click', e => { if (e.target === helpModal) helpModal.style.display = 'none'; });
+
+  function toggleHelp() {
+    const visible = helpModal.style.display === 'flex';
+    helpModal.style.display = visible ? 'none' : 'flex';
+  }
+
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && e.target.tagName === 'TEXTAREA') {
       const row = getSelected();
@@ -541,6 +594,9 @@
     }
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+    if (e.key === '?') { e.preventDefault(); toggleHelp(); return; }
+    if (e.key === 'Escape' && helpModal.style.display === 'flex') { helpModal.style.display = 'none'; return; }
 
     if (!e.shiftKey && e.key === 'o') {
       e.preventDefault();
