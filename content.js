@@ -564,16 +564,16 @@
     if (!link) return;
 
     const commentForm = document.querySelector('form[action="comment"]');
-    const insertBefore = commentForm?.closest('tr');
+    const firstComment = document.querySelector('tr.athing.comtr');
+    const insertBefore = commentForm?.closest('tr') ?? firstComment;
     const tbody = insertBefore?.parentElement;
     if (!tbody) return;
 
     const summaryRow = document.createElement('tr');
     summaryRow.id = 'hn-nav-story-summary';
-    const pad = document.createElement('td');
-    pad.setAttribute('colspan', '2');
     const summaryTd = document.createElement('td');
-    summaryTd.style.cssText = 'padding: 6px 0 14px;';
+    summaryTd.setAttribute('colspan', '100');
+    summaryTd.style.cssText = 'padding: 6px 23 14px;';
     const header = document.createElement('div');
     header.style.cssText = 'font-size:10px; color:#aaa; font-family:monospace; margin-bottom:5px;';
     header.textContent = GEMINI_MODEL;
@@ -581,22 +581,45 @@
     body.innerHTML = '<em style="color:#999;font-size:0.9em">Summarizing article…</em>';
     summaryTd.appendChild(header);
     summaryTd.appendChild(body);
-    summaryRow.appendChild(pad);
     summaryRow.appendChild(summaryTd);
     tbody.insertBefore(summaryRow, insertBefore);
     storySummarizing = true;
 
     try {
       if (!geminiApiKey) throw new Error('No API key — add your Gemini API key in the extension popup');
+
+      // Fetch article content; fall back to URL-only if unreachable (dead link, CORS, etc.)
+      let articleText = '';
+      const isHNPost = link.href.includes('news.ycombinator.com');
+      if (isHNPost) {
+        articleText = document.querySelector('.toptext')?.textContent?.trim() ?? '';
+      } else {
+        body.innerHTML = '<em style="color:#999;font-size:0.9em">Fetching article…</em>';
+        try {
+          const articleRes = await fetch(link.href);
+          if (articleRes.ok) {
+            const html = await articleRes.text();
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            ['script', 'style', 'nav', 'header', 'footer', 'aside', 'iframe'].forEach(tag => {
+              doc.querySelectorAll(tag).forEach(el => el.remove());
+            });
+            const main = doc.querySelector('article, main, [role="main"]') ?? doc.body;
+            articleText = (main.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 20000);
+          }
+        } catch (_) { /* fall through to URL-only prompt */ }
+      }
+      body.innerHTML = '<em style="color:#999;font-size:0.9em">Summarizing article…</em>';
+
+      const storyTitle = link.textContent.trim();
+      const prompt = articleText
+        ? `Article title: ${storyTitle}\nArticle URL: ${link.href}\n\nArticle content:\n${articleText}\n\nSummarize this article.`
+        : `Article title: ${storyTitle}\nArticle URL: ${link.href}\n\nThe article could not be fetched (link may be dead). Summarize what you know about this article based on the title and URL, or describe what it is likely about.`;
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:streamGenerateContent?alt=sse&key=${geminiApiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: 'Summarize this article clearly and concisely. Preserve key facts, numbers, and specific details.' }] },
-          contents: [{ parts: [
-            { fileData: { mimeType: 'text/html', fileUri: link.href } },
-            { text: 'Summarize this article.' },
-          ]}],
+          contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {},
         }),
       });
