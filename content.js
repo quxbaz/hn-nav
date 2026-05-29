@@ -573,7 +573,7 @@
     summaryRow.id = 'hn-nav-story-summary';
     const summaryTd = document.createElement('td');
     summaryTd.setAttribute('colspan', '100');
-    summaryTd.style.cssText = 'padding: 6px 23 14px;';
+    summaryTd.style.cssText = 'padding: 6px 33 14px;';
     const header = document.createElement('div');
     header.style.cssText = 'font-size:10px; color:#aaa; font-family:monospace; margin-bottom:5px;';
     header.textContent = GEMINI_MODEL;
