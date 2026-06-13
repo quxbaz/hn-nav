@@ -697,8 +697,8 @@
     <div style="${rowCss}"><span>Open story link</span>${k('o')}</div>
 
     <div style="${groupCss}">AI</div>
-    <div style="${rowCss}"><span>Summarize story link</span>${k('Shift')}+${k('Q')}</div>
-    <div style="${rowCss}"><span>AI summary</span>${k('q')}</div>
+    <div style="${rowCss}"><span>Summarize story link</span>${k('q')}</div>
+    <div style="${rowCss}"><span>AI summary</span>${k('s')}</div>
     <div style="${rowCss}"><span>Toggle chat</span>${k('Space')}</div>
     <div style="${rowCss}"><span>Submit prompt</span>${k('Ctrl')}+${k('Enter')}</div>
     <div style="${rowCss}"><span>Close chat / dismiss</span>${k('Esc')}</div>
@@ -732,7 +732,7 @@
     if (e.key === '?') { e.preventDefault(); toggleHelp(); return; }
     if (e.key === 'Escape' && helpModal.style.display === 'flex') { helpModal.style.display = 'none'; return; }
 
-    if (e.shiftKey && e.key === 'Q') {
+    if (!e.shiftKey && e.key === 'q') {
       e.preventDefault();
       summarizeStory();
       return;
@@ -773,7 +773,7 @@
       return;
     }
 
-    if (!e.shiftKey && e.key === 'q') {
+    if (!e.shiftKey && e.key === 's') {
       e.preventDefault();
       summarize();
       return;
