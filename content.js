@@ -557,7 +557,13 @@
 
   async function summarizeStory() {
     const existing = document.getElementById('hn-nav-story-summary');
-    if (existing) { existing.remove(); return; }
+    if (existing) {
+      // Already summarized — jump to the summary at the top of the page.
+      const target = existing.getBoundingClientRect().top + window.scrollY;
+      if (forceSmoothScroll) animatedScrollTo(target);
+      else window.scrollTo({ top: target, behavior: 'smooth' });
+      return;
+    }
     if (storySummarizing) return;
 
     const link = document.querySelector('.titleline > a') || document.querySelector('a.titlelink');
