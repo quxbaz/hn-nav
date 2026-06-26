@@ -701,6 +701,7 @@
     <div style="${groupCss}">Actions</div>
     <div style="${rowCss}"><span>Toggle upvote</span><span>${k('u')} ${k('w')}</span></div>
     <div style="${rowCss}"><span>Open story link</span>${k('o')}</div>
+    <div style="${rowCss}"><span>Open link in comment</span>${k('l')}</div>
 
     <div style="${groupCss}">AI</div>
     <div style="${rowCss}"><span>Summarize story link</span>${k('q')}</div>
@@ -747,6 +748,23 @@
     if (!e.shiftKey && e.key === 'o') {
       e.preventDefault();
       const link = document.querySelector('.titleline > a') || document.querySelector('a.titlelink');
+      if (link) {
+        const a = document.createElement('a');
+        a.href = link.href;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+      return;
+    }
+
+    if (!e.shiftKey && e.key === 'l') {
+      e.preventDefault();
+      const row = getSelected();
+      if (!row) return;
+      const link = row.querySelector('.commtext a[href]');
       if (link) {
         const a = document.createElement('a');
         a.href = link.href;
