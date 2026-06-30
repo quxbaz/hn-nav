@@ -10,7 +10,6 @@
   },
   "action": { "default_popup": "popup.html", "default_icon": "icon48.png" },
   "permissions": ["storage"],
-  "host_permissions": ["https://generativelanguage.googleapis.com/*", "<all_urls>"],
   "content_scripts": [
     {
       "matches": ["*://news.ycombinator.com/item*"],

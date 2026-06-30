@@ -5,12 +5,8 @@ const offsetLabel         = document.getElementById('offsetLabel');
 const scrollSpeedEl       = document.getElementById('scrollSpeed');
 const scrollSpeedLabel    = document.getElementById('scrollSpeedLabel');
 const swatches            = document.querySelectorAll('.swatch');
-const backendGeminiEl     = document.getElementById('backendGemini');
-const backendNanoEl       = document.getElementById('backendNano');
-const geminiApiKeyEl      = document.getElementById('geminiApiKey');
-const apiKeySectionEl     = document.getElementById('apiKeySection');
 
-chrome.storage.sync.get({ smoothScroll: true, showIndicator: true, offset: 20, indicatorColor: '#ff6600', scrollSpeed: 5, aiBackend: 'gemini', geminiApiKey: '' }, ({ smoothScroll, showIndicator, offset, indicatorColor, scrollSpeed, aiBackend, geminiApiKey }) => {
+chrome.storage.sync.get({ smoothScroll: true, showIndicator: true, offset: 20, indicatorColor: '#ff6600', scrollSpeed: 5 }, ({ smoothScroll, showIndicator, offset, indicatorColor, scrollSpeed }) => {
   smoothScrollEl.checked       = smoothScroll;
   showIndicatorEl.checked      = showIndicator;
   offsetEl.value               = offset;
@@ -18,9 +14,6 @@ chrome.storage.sync.get({ smoothScroll: true, showIndicator: true, offset: 20, i
   scrollSpeedEl.value          = scrollSpeed;
   scrollSpeedLabel.textContent = scrollSpeed;
   setActiveSwatch(indicatorColor);
-  (aiBackend === 'nano' ? backendNanoEl : backendGeminiEl).checked = true;
-  apiKeySectionEl.style.display = aiBackend === 'nano' ? 'none' : '';
-  geminiApiKeyEl.value = geminiApiKey;
 });
 
 smoothScrollEl.addEventListener('change', () => {
@@ -54,14 +47,3 @@ swatches.forEach(swatch => {
 function setActiveSwatch(color) {
   swatches.forEach(s => s.classList.toggle('active', s.dataset.color === color));
 }
-
-[backendGeminiEl, backendNanoEl].forEach(el => {
-  el.addEventListener('change', () => {
-    chrome.storage.sync.set({ aiBackend: el.value });
-    apiKeySectionEl.style.display = el.value === 'nano' ? 'none' : '';
-  });
-});
-
-geminiApiKeyEl.addEventListener('change', () => {
-  chrome.storage.sync.set({ geminiApiKey: geminiApiKeyEl.value });
-});
