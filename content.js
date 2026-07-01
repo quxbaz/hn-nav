@@ -47,7 +47,9 @@
     return Math.round(550 - speed * 45);
   }
 
+  let scrollRAF = null;
   function animatedScrollTo(targetY) {
+    if (scrollRAF !== null) cancelAnimationFrame(scrollRAF);
     const startY = window.scrollY;
     const diff = targetY - startY;
     const duration = scrollDuration;
@@ -56,9 +58,9 @@
       const t = Math.min((now - startTime) / duration, 1);
       const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
       window.scrollTo(0, startY + diff * ease);
-      if (t < 1) requestAnimationFrame(step);
+      scrollRAF = t < 1 ? requestAnimationFrame(step) : null;
     }
-    requestAnimationFrame(step);
+    scrollRAF = requestAnimationFrame(step);
   }
 
   // circle indicator
